@@ -3,267 +3,682 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Generator Pro</title>
+    <title>ToneGen - 多頻率音訊產生器</title>
+    <meta name="description" content="線上多頻率音訊產生器，支援波形疊加與即時視覺化。">
     <style>
         :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-color: #e0e0e0;
-            --accent: #00e676; /* 螢光綠，更有科技感 */
-            --danger: #ff4081;
-            --input-bg: #333;
+            --bg-dark: #121212;
+            --surface-dark: #1e1e1e;
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --danger: #cf6679;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border: #333;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
             margin: 0;
-            padding: 20px;
+            padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
         }
 
+        /* 佈局容器 */
         .container {
-            max-width: 800px;
             width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* 標題與視覺化區塊 */
+        header {
+            text-align: center;
+            margin-bottom: 20px;
         }
 
         h1 {
-            text-align: center;
-            font-weight: 200;
+            font-weight: 300;
             letter-spacing: 1px;
-            margin-bottom: 30px;
-            color: #fff;
+            margin: 0 0 15px 0;
+            font-size: 1.8rem;
         }
 
-        .controls-top {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: space-between;
-            margin-bottom: 25px;
-            background: var(--card-bg);
+        .visualizer-container {
+            width: 100%;
+            height: 120px;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 控制面板 */
+        .controls-panel {
+            background-color: var(--surface-dark);
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        .btn-group {
+        .main-actions {
             display: flex;
             gap: 10px;
         }
 
-        button {
-            padding: 12px 24px;
+        .master-vol {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.05);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        /* 按鈕樣式 */
+        .btn {
             border: none;
+            padding: 10px 20px;
             border-radius: 6px;
-            cursor: pointer;
             font-size: 15px;
             font-weight: 600;
+            cursor: pointer;
             transition: transform 0.1s, opacity 0.2s;
-            color: #000;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        button:active { transform: scale(0.98); }
-        button:hover { opacity: 0.9; }
 
-        .btn-play { background-color: var(--accent); color: #000; }
-        .btn-stop { background-color: var(--danger); color: #fff; display: none; }
-        .btn-add { background-color: #2979ff; color: #fff; }
-        .btn-copy { background-color: #424242; color: #fff; border: 1px solid #555; }
+        .btn:active { transform: scale(0.96); }
+        .btn:hover { opacity: 0.9; }
 
-        .oscillator-list {
+        .btn-play { background-color: var(--secondary); color: #000; }
+        .btn-stop { background-color: var(--danger); color: #000; display: none; }
+        .btn-add { background-color: var(--primary); color: #000; }
+        .btn-share { background-color: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); }
+        .btn-share:hover { border-color: var(--text-main); color: var(--text-main); }
+
+        /* 頻率列表 */
+        .osc-list {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
 
         .osc-card {
-            background-color: var(--card-bg);
-            padding: 20px;
+            background-color: var(--surface-dark);
+            padding: 15px;
             border-radius: 8px;
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr auto; /* Desktop grid */
+            gap: 15px;
             align-items: center;
-            gap: 20px;
-            border-left: 4px solid var(--accent);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            border-left: 4px solid var(--primary);
+            animation: slideIn 0.3s ease-out;
         }
 
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 輸入控制項樣式 */
         .input-group {
             display: flex;
             flex-direction: column;
-            flex: 1;
-            min-width: 120px;
         }
 
         label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #888;
-            margin-bottom: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
         }
 
         input[type="number"], select {
-            background: var(--input-bg);
-            border: 1px solid #444;
-            color: white;
-            padding: 10px;
+            background: #2b2b2b;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px;
             border-radius: 4px;
-            font-size: 16px;
-            outline: none;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
         }
-        
+
         input[type="number"]:focus, select:focus {
-            border-color: var(--accent);
+            outline: none;
+            border-color: var(--primary);
         }
 
         input[type="range"] {
+            width: 100%;
             cursor: pointer;
-            accent-color: var(--accent);
-            height: 6px;
-            background: #555;
-            border-radius: 3px;
-            appearance: none; 
+            accent-color: var(--primary);
         }
 
         .btn-remove {
             background: transparent;
-            border: 1px solid #555;
-            color: #888;
-            padding: 8px 12px;
-            font-size: 14px;
-        }
-        .btn-remove:hover {
-            border-color: var(--danger);
-            color: var(--danger);
-            background: rgba(255, 64, 129, 0.1);
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .status-bar {
-            margin-top: 25px;
-            padding: 8px 16px;
+        .btn-remove:hover {
+            background: rgba(207, 102, 121, 0.2);
+            color: var(--danger);
+        }
+
+        /* 狀態列 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            color: #000;
+            padding: 10px 20px;
             border-radius: 20px;
             font-size: 14px;
-            color: var(--accent);
-            background: rgba(0, 230, 118, 0.1);
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.3s;
+            z-index: 100;
         }
+        .toast.show { opacity: 1; }
 
+        /* RWD */
         @media (max-width: 600px) {
-            .osc-card { gap: 15px; }
-            .btn-group { width: 100%; }
-            button { flex: 1; }
+            .controls-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .osc-card {
+                grid-template-columns: 1fr 1fr; /* Mobile: 2 cols */
+                gap: 10px;
+                padding: 12px;
+            }
+            .osc-card .input-group:nth-child(3) {
+                grid-column: 1 / -1; /* Slider full width */
+            }
+            .osc-card .btn-remove {
+                grid-column: 2;
+                justify-self: end;
+                grid-row: 1;
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Audio Generator <span style="font-size:0.5em; opacity:0.5">PRO</span></h1>
-    
-    <div class="controls-top">
-        <div class="btn-group">
-            <button id="playBtn" class="btn-play">▶ 播放 Play</button>
-            <button id="stopBtn" class="btn-stop">■ 停止 Stop</button>
+    <header>
+        <h1>ToneGen 音頻實驗室</h1>
+        <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
         </div>
-        <div class="btn-group">
-            <button id="addBtn" class="btn-add">+ 新增 Add</button>
-            <button id="copyBtn" class="btn-copy">🔗 複製網址 Copy Link</button>
+    </header>
+
+    <div class="controls-panel">
+        <div class="main-actions">
+            <button id="playBtn" class="btn btn-play">▶ 播放</button>
+            <button id="stopBtn" class="btn btn-stop">■ 停止</button>
+            <button id="addBtn" class="btn btn-add">＋ 新增頻率</button>
+        </div>
+        
+        <div class="master-vol">
+            <div class="input-group" style="min-width: 120px;">
+                <label id="master-vol-label">總音量 (80%)</label>
+                <input type="range" id="masterVolSlider" min="0" max="1" step="0.01" value="0.8">
+            </div>
+            <button id="shareBtn" class="btn btn-share" title="複製連結">🔗 分享</button>
         </div>
     </div>
 
-    <div id="oscillatorList" class="oscillator-list"></div>
-    <div id="statusBar" class="status-bar">連結已複製 Link Copied</div>
+    <div id="oscList" class="osc-list">
+        <!-- JS 動態生成 -->
+    </div>
 </div>
 
+<div id="toast" class="toast">訊息提示</div>
+
 <script>
-    // --- 核心變數 ---
-    let audioCtx = null;
-    let activeNodes = [];
-    let isPlaying = false;
+    /**
+     * ToneGen Core Logic
+     */
     
-    // 預設設定 [頻率, 波形代碼, 音量]
-    // 波形代碼對照: 0=sine, 1=square, 2=sawtooth, 3=triangle
+    // --- 全域變數 ---
+    let audioCtx = null;
+    let masterGain = null;
+    let analyser = null;
+    let oscillators = []; // 儲存音訊節點 { osc, gain, id }
+    let isPlaying = false;
+    let animationId = null;
+
+    // 資料狀態 (Model)
     let settings = [
-        { freq: 440, type: 0, vol: 0.5 } 
+        { id: '1', freq: 440, type: 'sine', vol: 0.5 }
     ];
+    let masterVolume = 0.8;
 
-    const typeMap = ['sine', 'square', 'sawtooth', 'triangle']; // 用於 AudioNode
-    const typeLabels = ['正弦波 (Sine)', '方波 (Square)', '鋸齒波 (Saw)', '三角波 (Tri)']; // 用於 UI
-
-    // --- DOM 元素 ---
-    const listEl = document.getElementById('oscillatorList');
+    // DOM 元素
+    const oscListEl = document.getElementById('oscList');
     const playBtn = document.getElementById('playBtn');
     const stopBtn = document.getElementById('stopBtn');
     const addBtn = document.getElementById('addBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    const statusBar = document.getElementById('statusBar');
+    const shareBtn = document.getElementById('shareBtn');
+    const masterVolSlider = document.getElementById('masterVolSlider');
+    const masterVolLabel = document.getElementById('master-vol-label');
+    const canvas = document.getElementById('visualizer');
+    const canvasCtx = canvas.getContext('2d');
+    const toastEl = document.getElementById('toast');
 
     // --- 初始化 ---
     function init() {
-        loadFromHash();
-        renderUI();
-        window.addEventListener('hashchange', () => {
-            loadFromHash();
-            if(!isPlaying) renderUI();
+        loadFromUrl();
+        renderList();
+        setupCanvas();
+        updateMasterVolLabel();
+
+        // 監聽 URL 變化 (上一頁/下一頁)
+        window.addEventListener('popstate', () => {
+            loadFromUrl();
+            renderList();
+            if(isPlaying) restartAudioEngine();
         });
     }
 
-    // --- 音訊邏輯 ---
-    function initAudio() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    function play() {
-        initAudio();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        stop(false);
-
-        activeNodes = settings.map(s => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
+    // --- 音訊引擎 (Audio Engine) ---
+    function initAudioContext() {
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
             
-            osc.type = typeMap[s.type] || 'sine';
-            osc.frequency.setValueAtTime(s.freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(s.vol * 0.3, audioCtx.currentTime); // 總音量衰減以防爆音
+            // 建立主音量
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = masterVolume;
+            
+            // 建立分析器 (Visualizer)
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048;
 
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            return { osc, gain };
-        });
-
-        isPlaying = true;
-        updateBtns();
-    }
-
-    function stop(updateState = true) {
-        activeNodes.forEach(n => {
-            try { n.osc.stop(); n.osc.disconnect(); n.gain.disconnect(); } catch(e){}
-        });
-        activeNodes = [];
-        if (updateState) {
-            isPlaying = false;
-            updateBtns();
+            // 路由: Master -> Analyser -> Destination
+            masterGain.connect(analyser);
+            analyser.connect(audioCtx.destination);
         }
     }
 
-    function updateBtns() {
-        playBtn.style.display = isPlaying ? 'none' : 'block';
-        stopBtn.style.display = isPlaying ? 'block' : 'none';
+    function startAudio() {
+        initAudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        // 清除舊的 (如果有的話)
+        stopAudioEngine(false);
+
+        const now = audioCtx.currentTime;
+
+        // 建立並啟動所有振盪器
+        settings.forEach(data => {
+            createOscillatorNode(data, now);
+        });
+
+        // Master Fade In
+        masterGain.gain.cancelScheduledValues(now);
+        masterGain.gain.setValueAtTime(0, now);
+        masterGain.gain.linearRampToValueAtTime(masterVolume, now + 0.1);
+
+        isPlaying = true;
+        updatePlayStateUI();
+        drawVisualizer();
     }
 
-    // --- UI 渲染 ---
-    function renderUI() {
-        listEl.innerHTML = '';
-        settings.forEach((s, i) => {
-            const div = document.createElement('div');
-            div.className = 'osc-card';
+    function createOscillatorNode(data, startTime) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = data.type;
+        osc.frequency.value = data.freq;
+        
+        // 初始音量設為 0，避免瞬間爆音，稍後立即 Ramp 上去 (或是由 Master 控制)
+        gain.gain.value = data.vol;
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+
+        osc.start(startTime);
+
+        oscillators.push({
+            id: data.id,
+            oscNode: osc,
+            gainNode: gain
+        });
+    }
+
+    function stopAudio() {
+        if (!audioCtx || !isPlaying) return;
+        
+        const now = audioCtx.currentTime;
+        
+        // Master Fade Out
+        masterGain.gain.cancelScheduledValues(now);
+        masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+        setTimeout(() => {
+            stopAudioEngine(true);
+        }, 150); // 等待 Fade Out 結束
+    }
+
+    function stopAudioEngine(resetState) {
+        oscillators.forEach(o => {
+            try {
+                o.oscNode.stop();
+                o.oscNode.disconnect();
+                o.gainNode.disconnect();
+            } catch(e) {}
+        });
+        oscillators = [];
+        
+        if (animationId) cancelAnimationFrame(animationId);
+        
+        // 清空 Canvas
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(0, canvas.height/2);
+        canvasCtx.lineTo(canvas.width, canvas.height/2);
+        canvasCtx.strokeStyle = '#333';
+        canvasCtx.stroke();
+
+        if (resetState) {
+            isPlaying = false;
+            updatePlayStateUI();
+        }
+    }
+
+    function restartAudioEngine() {
+        if(isPlaying) {
+            stopAudioEngine(false); // 不重置 UI 狀態，只重置聲音
+            startAudio();
+        }
+    }
+
+    // --- 即時參數更新 (無爆音) ---
+    function updateAudioParam(id, key, value) {
+        if (!isPlaying || !audioCtx) return;
+        
+        const target = oscillators.find(o => o.id === id);
+        if (target) {
+            const now = audioCtx.currentTime;
+            if (key === 'freq') {
+                // 平滑頻率過渡 (0.05s)
+                target.oscNode.frequency.setTargetAtTime(value, now, 0.05);
+            } else if (key === 'vol') {
+                // 平滑音量過渡
+                target.gainNode.gain.setTargetAtTime(value, now, 0.05);
+            } else if (key === 'type') {
+                target.oscNode.type = value;
+            }
+        }
+    }
+
+    // --- UI 渲染與事件處理 ---
+    function renderList() {
+        oscListEl.innerHTML = '';
+        settings.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'osc-card';
+            card.dataset.id = item.id;
             
-            // 構建波形選項
+            card.innerHTML = `
+                <div class="input-group">
+                    <label>頻率 (Hz)</label>
+                    <input type="number" min="1" max="22000" value="${item.freq}" 
+                           oninput="handleInput('${item.id}', 'freq', this.value)">
+                </div>
+                <div class="input-group">
+                    <label>波形</label>
+                    <select onchange="handleInput('${item.id}', 'type', this.value)">
+                        <option value="sine" ${item.type === 'sine' ? 'selected' : ''}>正弦波 (Sine)</option>
+                        <option value="square" ${item.type === 'square' ? 'selected' : ''}>方波 (Square)</option>
+                        <option value="sawtooth" ${item.type === 'sawtooth' ? 'selected' : ''}>鋸齒波 (Saw)</option>
+                        <option value="triangle" ${item.type === 'triangle' ? 'selected' : ''}>三角波 (Tri)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label id="lbl-vol-${item.id}">音量 (${Math.round(item.vol * 100)}%)</label>
+                    <input type="range" min="0" max="1" step="0.01" value="${item.vol}" 
+                           oninput="handleInput('${item.id}', 'vol', this.value)">
+                </div>
+                <button class="btn btn-remove" onclick="removeItem('${item.id}')" title="移除">×</button>
+            `;
+            oscListEl.appendChild(card);
+        });
+    }
+
+    // 處理輸入變化 (Model Update & Audio Update)
+    window.handleInput = function(id, key, value) {
+        const item = settings.find(s => s.id === id);
+        if (!item) return;
+
+        if (key === 'freq') {
+            item.freq = parseFloat(value);
+        } else if (key === 'vol') {
+            item.vol = parseFloat(value);
+            // 更新 UI 標籤
+            document.getElementById(`lbl-vol-${id}`).textContent = `音量 (${Math.round(item.vol * 100)}%)`;
+        } else {
+            item.type = value;
+        }
+
+        updateAudioParam(id, key, key === 'type' ? value : parseFloat(value));
+        updateUrlHash();
+    };
+
+    window.removeItem = function(id) {
+        settings = settings.filter(s => s.id !== id);
+        
+        // 從 DOM 移除
+        const card = document.querySelector(`.osc-card[data-id='${id}']`);
+        if(card) card.remove();
+        
+        // 從 Audio Engine 移除
+        if(isPlaying) {
+            const targetIndex = oscillators.findIndex(o => o.id === id);
+            if(targetIndex > -1) {
+                const target = oscillators[targetIndex];
+                try {
+                    // 快速淡出
+                    target.gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.02);
+                    setTimeout(() => {
+                        target.oscNode.stop();
+                        target.oscNode.disconnect();
+                    }, 100);
+                } catch(e) {}
+                oscillators.splice(targetIndex, 1);
+            }
+        }
+        updateUrlHash();
+    };
+
+    addBtn.addEventListener('click', () => {
+        // 隨機 ID
+        const newId = Math.random().toString(36).substr(2, 9);
+        const newData = { id: newId, freq: 440, type: 'sine', vol: 0.5 };
+        settings.push(newData);
+        
+        // 為了簡單起見，新增時重新 render 列表 (或是可以只 appendChild)
+        // 這裡為了邏輯統一，重新 render
+        renderList(); 
+        
+        if (isPlaying) {
+            createOscillatorNode(newData, audioCtx.currentTime);
+        }
+        updateUrlHash();
+    });
+
+    // 主音量控制
+    masterVolSlider.addEventListener('input', (e) => {
+        masterVolume = parseFloat(e.target.value);
+        updateMasterVolLabel();
+        if (masterGain) {
+            masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.05);
+        }
+    });
+
+    function updateMasterVolLabel() {
+        masterVolLabel.textContent = `總音量 (${Math.round(masterVolume * 100)}%)`;
+    }
+
+    // 播放狀態 UI 切換
+    function updatePlayStateUI() {
+        if (isPlaying) {
+            playBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-flex';
+        } else {
+            playBtn.style.display = 'inline-flex';
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    playBtn.addEventListener('click', startAudio);
+    stopBtn.addEventListener('click', stopAudio);
+
+    // 分享/複製連結
+    shareBtn.addEventListener('click', () => {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+            showToast("連結已複製 (Base64 URL 安全)");
+        });
+    });
+
+    function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        setTimeout(() => toastEl.classList.remove('show'), 3000);
+    }
+
+    // --- Canvas 視覺化 ---
+    function setupCanvas() {
+        // 設定高解析度 Canvas
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvasCtx.scale(dpr, dpr);
+    }
+    
+    // 視窗調整大小時重設 Canvas
+    window.addEventListener('resize', setupCanvas);
+
+    function drawVisualizer() {
+        if (!isPlaying) return;
+        animationId = requestAnimationFrame(drawVisualizer);
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteTimeDomainData(dataArray);
+
+        // 清除背景
+        canvasCtx.fillStyle = '#000';
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height); // 使用 width/height 屬性值
+
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = '#03dac6'; // Secondary color
+        canvasCtx.beginPath();
+
+        // 由於我們 scale 過 ctx，這裡的 width 需要除以 dpr 取得邏輯寬度，
+        // 或者直接用 canvas.width (物理像素) 配合之前的 scale
+        // 最簡單的方法是用 clientWidth
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        
+        const sliceWidth = width * 1.0 / bufferLength;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+            const v = dataArray[i] / 128.0; // 128 是靜音中心點
+            const y = v * height / 2;
+
+            if (i === 0) {
+                canvasCtx.moveTo(x, y);
+            } else {
+                canvasCtx.lineTo(x, y);
+            }
+
+            x += sliceWidth;
+        }
+
+        canvasCtx.lineTo(width, height / 2);
+        canvasCtx.stroke();
+    }
+
+    // --- URL 處理 (使用 Base64 避免中文與特殊符號) ---
+    function updateUrlHash() {
+        // 僅儲存必要欄位以縮短 URL
+        const simpleData = settings.map(s => ({
+            f: s.freq, 
+            t: s.type, 
+            v: s.vol
+        }));
+        
+        const jsonStr = JSON.stringify(simpleData);
+        // Base64 編碼
+        const b64 = btoa(jsonStr);
+        history.replaceState(null, null, '#config=' + b64);
+    }
+
+    function loadFromUrl() {
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#config=')) {
+            try {
+                const b64 = hash.substring(8);
+                const jsonStr = atob(b64);
+                const simpleData = JSON.parse(jsonStr);
+                
+                // 還原完整結構
+                settings = simpleData.map(s => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    freq: s.f,
+                    type: s.t,
+                    vol: s.v
+                }));
+            } catch (e) {
+                console.error("URL 解析失敗", e);
+                showToast("URL 格式錯誤，載入預設值");
+            }
+        }
+    }
+
+    init();
+
+</script>
+</body>
+</html>
+
+
