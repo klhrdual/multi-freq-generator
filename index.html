@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多頻率音訊產生器</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent: #4caf50;
+            --danger: #ff5252;
+            --input-bg: #404040;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .controls-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .btn-play { background-color: var(--accent); }
+        .btn-play:hover { background-color: #43a047; }
+        .btn-stop { background-color: var(--danger); display: none;}
+        .btn-add { background-color: #2196f3; }
+        .btn-copy { background-color: #607d8b; font-size: 14px;}
+
+        .oscillator-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .osc-card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            animation: fadeIn 0.3s ease;
+            border-left: 5px solid var(--accent);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        label {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        input[type="number"], select {
+            background: var(--input-bg);
+            border: 1px solid #555;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        input[type="range"] {
+            cursor: pointer;
+        }
+
+        .btn-remove {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        .btn-remove:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .status-bar {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #888;
+            min-height: 20px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .osc-card {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>音頻產生器</h1>
+    
+    <div class="controls-top">
+        <div>
+            <button id="playBtn" class="btn btn-play">▶ 播放音頻</button>
+            <button id="stopBtn" class="btn btn-stop">■ 停止播放</button>
+        </div>
+        <div>
+            <button id="addBtn" class="btn btn-add">+ 新增頻率</button>
+            <button id="copyBtn" class="btn btn-copy">複製分享連結</button>
+        </div>
+    </div>
+
+    <div id="oscillatorList" class="oscillator-list">
+        </div>
+
+    <div id="statusBar" class="status-bar"></div>
+</div>
+
+<script>
+    // --- 狀態管理 ---
+    let audioCtx = null;
+    let activeOscillators = []; // 存放真實的 AudioNode
+    let isPlaying = false;
+    
+    // 預設設定
+    let settings = [
+        { freq: 440, type: 'sine', vol: 0.5 }
+    ];
+
+    const listEl = document.getElementById('oscillatorList');
+    const playBtn = document.getElementById('playBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const addBtn = document.getElementById('addBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const statusBar = document.getElementById('statusBar');
+
+    // --- 初始化 ---
+    function init() {
+        // 1. 檢查 URL Hash 是否有設定
+        loadSettingsFromUrl();
+        // 2. 渲染介面
+        renderUI();
+        
+        // 監聽 URL 變化 (如果使用者手動改網址)
+        window.addEventListener('hashchange', () => {
+            loadSettingsFromUrl();
+            if(!isPlaying) renderUI(); 
+        });
+    }
+
+    // --- 音訊核心邏輯 ---
+    function initAudioContext() {
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+    }
+
+    function playAudio() {
+        initAudioContext();
+        
+        // 瀏覽器政策要求：必須在用戶互動後 resume
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
+        // 清除舊的聲音
+        stopAudio(false);
+
+        activeOscillators = settings.map(setting => {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = setting.type;
+            osc.frequency.setValueAtTime(setting.freq, audioCtx.currentTime);
+            
+            // 音量控制 (避免過大，做一個總體衰減)
+            // 為了防止多個疊加爆音，可以將單個最大音量限制一下
+            gainNode.gain.setValueAtTime(setting.vol * 0.5, audioCtx.currentTime);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start();
+            return { osc, gainNode };
+        });
+
+        isPlaying = true;
+        updatePlayButtons();
+        showStatus("正在播放...");
+    }
+
+    function stopAudio(updateUI = true) {
+        if (activeOscillators.length > 0) {
+            activeOscillators.forEach(node => {
+                try {
+                    node.osc.stop();
+                    node.osc.disconnect();
+                    node.gainNode.disconnect();
+                } catch (e) { console.error(e); }
+            });
+            activeOscillators = [];
+        }
+        
+        if (updateUI) {
+            isPlaying = false;
+            updatePlayButtons();
+            showStatus("已停止");
+        }
+    }
+
+    function updatePlayButtons() {
+        if (isPlaying) {
+            playBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+        } else {
+            playBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    // --- UI 渲染與互動 ---
+    function renderUI() {
+        listEl.innerHTML = '';
+        settings.forEach((setting, index) => {
+            const card = document.createElement('div');
+            card.className = 'osc-card';
+            card.innerHTML = `
+                <div class="input-group">
+                    <label>頻率 (Hz)</label>
+                    <input type="number" value="${setting.freq}" min="1" max="20000" step="1" onchange="updateSetting(${index}, 'freq', this.value)">
+                </div>
+                <div class="input-group">
+                    <label>波形</label>
+                    <select onchange="updateSetting(${index}, 'type', this.value)">
+                        <option value="sine" ${setting.type === 'sine' ? 'selected' : ''}>正弦波 (Sine)</option>
+                        <option value="square" ${setting.type === 'square' ? 'selected' : ''}>方波 (Square)</option>
+                        <option value="sawtooth" ${setting.type === 'sawtooth' ? 'selected' : ''}>鋸齒波 (Saw)</option>
+                        <option value="triangle" ${setting.type === 'triangle' ? 'selected' : ''}>三角波 (Tri)</option>
+                    </select>
+                </div>
+                <div class="input-group" style="flex: 0.5; min-width: 80px;">
+                    <label>音量 (${Math.round(setting.vol * 100)}%)</label>
+                    <input type="range" min="0" max="1" step="0.01" value="${setting.vol}" oninput="updateSetting(${index}, 'vol', this.value)">
+                </div>
+                <button class="btn btn-remove" onclick="removeOscillator(${index})">✕</button>
+            `;
+            listEl.appendChild(card);
+        });
+        updateUrlHash();
+    }
+
+    // 全域函數供 HTML onclick 使用
+    window.updateSetting = function(index, key, value) {
+        // 轉換數值
+        if (key === 'freq' || key === 'vol') {
+            value = parseFloat(value);
+        }
+        settings[index][key] = value;
+        
+        // 如果正在播放，即時更新聲音參數
+        if (isPlaying && activeOscillators[index]) {
+            const node = activeOscillators[index];
+            const ctxTime = audioCtx.currentTime;
+            
+            if (key === 'freq') {
+                node.osc.frequency.setValueAtTime(value, ctxTime);
+            } else if (key === 'vol') {
+                node.gainNode.gain.setValueAtTime(value * 0.5, ctxTime);
+            } else if (key === 'type') {
+                node.osc.type = value;
+            }
+            // 更新 UI 文字 (針對 Range input 的 label)
+            if (key === 'vol') {
+               renderUI(); // 簡單暴力重繪更新 % 顯示，或可優化只更新 label
+               // 為了避免重繪導致 input 失去焦點，這裡通常需要更精細的 DOM 操作
+               // 但為了程式碼簡潔，這裡暫時不重繪，僅更新 URL
+            }
+        }
+        
+        updateUrlHash();
+    };
+
+    window.removeOscillator = function(index) {
+        settings.splice(index, 1);
+        if (isPlaying) {
+            // 簡單起見，移除時重啟播放以對齊索引
+            playAudio();
+        }
+        renderUI();
+    };
+
+    addBtn.addEventListener('click', () => {
+        settings.push({ freq: 440, type: 'sine', vol: 0.5 });
+        if (isPlaying) playAudio(); // 重啟以加入新聲音
+        renderUI();
+    });
+
+    playBtn.addEventListener('click', playAudio);
+    stopBtn.addEventListener('click', () => stopAudio(true));
+    
+    copyBtn.addEventListener('click', () => {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+            showStatus("連結已複製到剪貼簿！");
+        });
+    });
+
+    function showStatus(msg) {
+        statusBar.textContent = msg;
+        setTimeout(() => statusBar.textContent = '', 3000);
+    }
+
+    // --- URL 序列化與解析 ---
+    // 使用簡單的 JSON stringify 並放在 hash 中
+    // 格式: #data=[{"freq":440...}]
+    
+    function updateUrlHash() {
+        const jsonStr = JSON.stringify(settings);
+        // 使用 encodeURIComponent 確保特殊字元安全
+        const compressed = encodeURIComponent(jsonStr);
+        // 不觸發 reload 地更新 hash
+        history.replaceState(null, null, '#data=' + compressed);
+    }
+
+    function loadSettingsFromUrl() {
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#data=')) {
+            try {
+                const jsonStr = decodeURIComponent(hash.substring(6));
+                settings = JSON.parse(jsonStr);
+            } catch (e) {
+                console.error("解析 URL 設定失敗", e);
+                showStatus("URL 設定格式錯誤，載入預設值");
+            }
+        }
+    }
+
+    // 啟動
+    init();
+
+</script>
+</body>
+</html>
