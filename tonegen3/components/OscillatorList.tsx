@@ -11,6 +11,12 @@ interface Props {
 }
 
 const OscillatorList: React.FC<Props> = ({ oscillators, onUpdate, onRemove, t }) => {
+  // Helper to get localized waveform name
+  const getWaveName = (type: string) => {
+      const key = `wave_${type}` as keyof typeof t;
+      return t[key] || type;
+  };
+
   if (oscillators.length === 0) {
     return (
       <div className="text-center py-10 text-platinum-400 dark:text-platinum-600 font-light italic transition-colors">
@@ -28,10 +34,10 @@ const OscillatorList: React.FC<Props> = ({ oscillators, onUpdate, onRemove, t })
         >
           {/* Frequency Control & Mobile Delete Button */}
           <div className="flex items-center gap-3 flex-1 w-full md:w-auto">
-            <div className="w-10 h-10 rounded-full bg-platinum-100 dark:bg-obsidian-200 flex items-center justify-center text-platinum-600 dark:text-platinum-300 shadow-inner">
+            <div className="w-10 h-10 rounded-full bg-platinum-100 dark:bg-obsidian-200 flex items-center justify-center text-platinum-600 dark:text-platinum-300 shadow-inner shrink-0">
                <Activity size={18} />
             </div>
-            <div className="flex flex-col flex-1">
+            <div className="flex flex-col flex-1 min-w-[120px]">
                 <label className="text-xs text-platinum-500 dark:text-platinum-400 font-semibold uppercase tracking-wide">{t.frequency} ({t.hz})</label>
                 <div className="flex items-center gap-2">
                     <input
@@ -44,10 +50,10 @@ const OscillatorList: React.FC<Props> = ({ oscillators, onUpdate, onRemove, t })
                 </div>
             </div>
             
-            {/* Mobile Delete Button (Visible only on small screens) */}
+            {/* Mobile Delete Button (Visible only on small screens, aligned to right of frequency) */}
             <button
               onClick={() => onRemove(osc.id)}
-              className="md:hidden p-2 rounded-full text-platinum-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+              className="md:hidden p-2 ml-2 rounded-full text-platinum-400 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0"
               title={t.remove}
             >
               <Trash2 size={18} />
@@ -62,10 +68,10 @@ const OscillatorList: React.FC<Props> = ({ oscillators, onUpdate, onRemove, t })
                 onChange={(e) => onUpdate(osc.id, { type: e.target.value as any })}
                 className="bg-transparent border-b border-platinum-300 dark:border-obsidian-500 focus:border-platinum-600 dark:focus:border-platinum-300 outline-none text-platinum-800 dark:text-platinum-100 text-sm py-1 cursor-pointer transition-colors"
              >
-                 <option value="sine" className="dark:bg-obsidian-300">Sine</option>
-                 <option value="square" className="dark:bg-obsidian-300">Square</option>
-                 <option value="sawtooth" className="dark:bg-obsidian-300">Sawtooth</option>
-                 <option value="triangle" className="dark:bg-obsidian-300">Triangle</option>
+                 <option value="sine" className="dark:bg-obsidian-300">{getWaveName('sine')}</option>
+                 <option value="square" className="dark:bg-obsidian-300">{getWaveName('square')}</option>
+                 <option value="sawtooth" className="dark:bg-obsidian-300">{getWaveName('sawtooth')}</option>
+                 <option value="triangle" className="dark:bg-obsidian-300">{getWaveName('triangle')}</option>
              </select>
           </div>
 

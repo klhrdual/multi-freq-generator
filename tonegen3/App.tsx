@@ -95,9 +95,12 @@ const App: React.FC = () => {
 
   // Delete All
   const handleDeleteAll = () => {
-    if (window.confirm('Are you sure you want to delete all frequencies?')) {
+    if (window.confirm(t.deleteAllConfirm)) {
+        // Stop audio first
         audioService.stopAll();
+        // Clear state
         setOscillators([]);
+        // Update playing status
         setIsPlaying(false);
     }
   };

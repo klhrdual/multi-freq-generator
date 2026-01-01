@@ -100,6 +100,18 @@ const AddToneModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, t }) => {
     setStagedOscillators(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
   };
 
+  // Helper to get localized instrument name
+  const getInstrumentName = (name: string) => {
+      const key = `inst_${name}` as keyof typeof t;
+      return t[key] || name;
+  };
+  
+  // Helper to get localized waveform name
+  const getWaveName = (type: string) => {
+      const key = `wave_${type}` as keyof typeof t;
+      return t[key] || type;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -156,10 +168,10 @@ const AddToneModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, t }) => {
                         onChange={(e) => setBaseWave(e.target.value as Waveform)}
                         className="w-full bg-white dark:bg-obsidian-400 border border-platinum-300 dark:border-obsidian-500 rounded p-2 text-sm outline-none focus:border-platinum-500 dark:text-platinum-200"
                      >
-                        <option value="sine">Sine</option>
-                        <option value="square">Square</option>
-                        <option value="sawtooth">Sawtooth</option>
-                        <option value="triangle">Triangle</option>
+                        <option value="sine">{getWaveName('sine')}</option>
+                        <option value="square">{getWaveName('square')}</option>
+                        <option value="sawtooth">{getWaveName('sawtooth')}</option>
+                        <option value="triangle">{getWaveName('triangle')}</option>
                      </select>
                  </div>
                  <div className="col-span-1">
@@ -177,7 +189,7 @@ const AddToneModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, t }) => {
                 onClick={addBaseToStage}
                 className="mt-4 w-full py-2 border border-platinum-400 dark:border-obsidian-500 text-platinum-600 dark:text-platinum-300 rounded-lg hover:bg-platinum-200 dark:hover:bg-obsidian-100 transition-colors text-sm font-semibold shadow-sm"
              >
-                Add Single Tone to Stage
+                {t.addTone}
              </button>
           </div>
 
@@ -194,7 +206,7 @@ const AddToneModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, t }) => {
              </div>
              
              <p className="text-xs text-platinum-400 mb-3">
-                Generates up to 10 harmonics based on the Base Frequency above.
+                Generates up to 10 harmonics based on the Base Frequency.
              </p>
 
              <div className="flex gap-4">
@@ -204,7 +216,7 @@ const AddToneModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, t }) => {
                     className="flex-1 bg-white dark:bg-obsidian-400 border border-platinum-300 dark:border-obsidian-500 rounded-lg p-2 text-sm outline-none shadow-sm dark:text-platinum-200"
                 >
                     {INSTRUMENT_PRESETS.map(inst => (
-                        <option key={inst.name} value={inst.name}>{inst.name}</option>
+                        <option key={inst.name} value={inst.name}>{getInstrumentName(inst.name)}</option>
                     ))}
                 </select>
                 <button 
@@ -236,7 +248,7 @@ const AddToneModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, t }) => {
                   {stagedOscillators.map((osc) => (
                       <div key={osc.id} className="flex items-center gap-2 bg-white dark:bg-obsidian-400 p-2 rounded border border-platinum-200 dark:border-obsidian-500 text-sm">
                           <div className="w-20 font-mono text-platinum-700 dark:text-platinum-300">{osc.freq} {t.hz}</div>
-                          <div className="w-20 text-xs text-platinum-500 dark:text-platinum-400">{osc.type}</div>
+                          <div className="w-20 text-xs text-platinum-500 dark:text-platinum-400">{getWaveName(osc.type)}</div>
                           <input 
                             type="range" min="0" max="1" step="0.01" value={osc.vol}
                             onChange={(e) => updateStagedItem(osc.id, { vol: Number(e.target.value) })}
